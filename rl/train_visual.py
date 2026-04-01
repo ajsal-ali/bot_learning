@@ -168,10 +168,11 @@ def train_visual(
 def main():
     parser = argparse.ArgumentParser(description='Train GO-BDX with visualization')
     parser.add_argument('--timesteps', '-t', type=int, default=500_000)
+    parser.add_argument('--n-envs', '-n', type=int, default=4, help='Number of parallel envs')
     parser.add_argument('--stage', '-s', type=int, default=1, choices=[1,2,3,4])
     args = parser.parse_args()
     
-    train_visual(timesteps=args.timesteps, start_stage=args.stage)
+    train_visual(timesteps=args.timesteps, n_envs=args.n_envs, start_stage=args.stage)
 
 
 if __name__ == "__main__":
