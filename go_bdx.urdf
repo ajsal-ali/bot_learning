@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot name="go_bdx">
+  <joint name="head_pitch" type="revolute">
+    <origin xyz="-0.1124 0.06502 0.00466" rpy="0. 0. 0."/>
+    <parent link="neck_pitch_link"/>
+    <child link="head_pitch_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="head_yaw" type="revolute">
+    <origin xyz="-0.03592 0.00602 0.00021" rpy="3.1415927 -1.5707927 3.1415927"/>
+    <parent link="head_pitch_link"/>
+    <child link="head_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_antenna" type="revolute">
+    <origin xyz="0.09909 0.12038 0.02156" rpy="3.1415927 1.5707927 3.1415927"/>
+    <parent link="head_link"/>
+    <child link="left_antenna_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_foot" type="revolute">
+    <origin xyz="0.12764 -0.04346 0.03058" rpy="0. 0. 0."/>
+    <parent link="left_lower_leg_link"/>
+    <child link="left_foot_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_hip_pitch" type="revolute">
+    <origin xyz="-0.00079 -0.01022 -0.00168" rpy="1.301627 1.5707928 2.872427 "/>
+    <parent link="hip_roll_left_link"/>
+    <child link="hip_pitch_left_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_hip_roll" type="revolute">
+    <origin xyz="0.0456 0.09849 -0.01723" rpy="0. 0. 0."/>
+    <parent link="BDX"/>
+    <child link="hip_roll_left_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_hip_yaw" type="revolute">
+    <origin xyz="0.00246 -0.11832 0.01368" rpy="1.5708 0. 0. "/>
+    <parent link="hip_pitch_left_link"/>
+    <child link="left_upper_leg_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="left_shin" type="revolute">
+    <origin xyz="0.0743 0.08022 -0.07015" rpy="0. 0. 0."/>
+    <parent link="left_upper_leg_link"/>
+    <child link="left_lower_leg_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="neck" type="revolute">
+    <origin xyz="-0.01146 0.02357 0.0852 " rpy="3.1415927 1.5707927 3.1415927"/>
+    <parent link="BDX"/>
+    <child link="neck_pitch_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_antenna" type="revolute">
+    <origin xyz="-0.10121 0.12038 0.02156" rpy="0.0000025 1.5707927 3.1415927"/>
+    <parent link="head_link"/>
+    <child link="right_antenna_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_foot" type="revolute">
+    <origin xyz="0.12764 0.04346 0.03058" rpy="0. 0. 0."/>
+    <parent link="right_lower_leg_link"/>
+    <child link="right_foot_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_hip_pitch" type="revolute">
+    <origin xyz="-0.00079 0.01022 -0.00168" rpy="-1.5708 0. 3.14159"/>
+    <parent link="hip_roll_right_link"/>
+    <child link="hip_pitch_right_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_hip_roll" type="revolute">
+    <origin xyz="-0.0456 0.09849 -0.01723" rpy="0. 0. 3.14159"/>
+    <parent link="BDX"/>
+    <child link="hip_roll_right_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_hip_yaw" type="revolute">
+    <origin xyz="-0.11832 0.00246 0.01368" rpy="-1.5708 -0.0000001 1.5708 "/>
+    <parent link="hip_pitch_right_link"/>
+    <child link="right_upper_leg_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <joint name="right_shin" type="revolute">
+    <origin xyz="0.0743 -0.08022 -0.07015" rpy="0. 0. 0."/>
+    <parent link="right_upper_leg_link"/>
+    <child link="right_lower_leg_link"/>
+    <axis xyz="0. 0. 1."/>
+    <limit lower="-0.7854" upper="0.7854" effort="340282346638528859811704183484516925440." velocity="5939047335254987724700441203225657344."/>
+  </joint>
+  <link name="BDX">
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/body_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/body_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="head_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="5."/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/head_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/head_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="head_pitch_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.2"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/head_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/head_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="hip_pitch_left_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="1.5708 -0.0000001 -1.5708 "/>
+      <geometry>
+        <mesh filename="meshes/hip_pitch_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="1.5708 -0.0000001 -1.5708 "/>
+      <geometry>
+        <mesh filename="meshes/hip_pitch_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="hip_pitch_right_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="1.57080 0. 0"/>
+      <geometry>
+        <mesh filename="meshes/hip_pitch_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="1.57080 0. 0"/>
+      <geometry>
+        <mesh filename="meshes/hip_pitch_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="hip_roll_left_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/hip_roll_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <geometry>
+        <mesh filename="meshes/hip_roll_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="hip_roll_right_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 0. 0. "/>
+      <geometry>
+        <mesh filename="meshes/hip_roll_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 0. 0. "/>
+      <geometry>
+        <mesh filename="meshes/hip_roll_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_antenna_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.1"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_antenna_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_antenna_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_foot_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_foot_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_foot_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_lower_leg_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="1."/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_lower_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_lower_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_upper_leg_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="2."/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_upper_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 -3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/left_upper_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="neck_pitch_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/neck_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="3.1415927 -1.5707928 3.1415927"/>
+      <geometry>
+        <mesh filename="meshes/neck_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_antenna_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0.00000 0 0.00000"/>
+      <mass value="0.1"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0.00000 1.57080 0.00000"/>
+      <geometry>
+        <mesh filename="meshes/right_antenna_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0.00000 1.57080 0.00000"/>
+      <geometry>
+        <mesh filename="meshes/right_antenna_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_foot_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="0.5"/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_foot_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_foot_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_lower_leg_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="1."/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_lower_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_lower_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_upper_leg_link">
+    <inertial>
+      <origin xyz="0. 0. 0." rpy="0. 0. 0."/>
+      <mass value="2."/>
+      <inertia ixx="0." ixy="0." ixz="0." iyy="0." iyz="0." izz="0."/>
+    </inertial>
+    <visual>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_upper_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0. 0. 0." rpy="0. 1.57080 0. "/>
+      <geometry>
+        <mesh filename="meshes/right_upper_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
