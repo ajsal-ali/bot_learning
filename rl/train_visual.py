@@ -27,21 +27,37 @@ from curriculum import CurriculumScheduler
 
 class RenderCallback(BaseCallback):
     """
-    Callback that renders env[0] and tracks training progress.
+    Callback that renders a separate env and tracks training progress.
     """
     
-    def __init__(self, curriculum: CurriculumScheduler, verbose: int = 1):
+    def __init__(self, render_env: GoBdxEnv, curriculum: CurriculumScheduler, verbose: int = 1):
         super().__init__(verbose)
+        self.render_env = render_env
         self.curriculum = curriculum
         self.episode_count = 0
         self.episode_rewards = []
         self.current_ep_rewards = {}
+        self.render_obs = None
+        self.render_ep_reward = 0
+        
+    def _on_training_start(self):
+        self.render_obs, _ = self.render_env.reset()
         
     def _on_step(self) -> bool:
-        # Render first environment
-        self.training_env.envs[0].render()
+        # Get action for render env using current policy
+        action, _ = self.model.predict(self.render_obs, deterministic=False)
         
-        # Track rewards and episodes
+        # Step render env
+        self.render_obs, reward, term, trunc, info = self.render_env.step(action)
+        self.render_ep_reward += reward
+        self.render_env.render()
+        
+        # Reset render env if done
+        if term or trunc:
+            self.render_obs, _ = self.render_env.reset()
+            self.render_ep_reward = 0
+        
+        # Track training env episodes
         for i, done in enumerate(self.locals['dones']):
             if i not in self.current_ep_rewards:
                 self.current_ep_rewards[i] = 0
@@ -67,6 +83,9 @@ class RenderCallback(BaseCallback):
                           f"Stage={self.curriculum.stage} ({reason})")
         
         return True
+    
+    def _on_training_end(self):
+        self.render_env.close()
 
 
 def train_visual(
@@ -83,16 +102,15 @@ def train_visual(
     print("GO-BDX Parallel Training with Visualization")
     print("=" * 60)
     print(f"Timesteps: {timesteps:,}")
-    print(f"Parallel Envs: {n_envs} (env[0] rendered)")
+    print(f"Parallel Envs: {n_envs}")
     print(f"Stage: {start_stage}")
     print("=" * 60)
     
-    # Create N environments - first one with render, rest without
+    # Create N training environments (no render)
     def make_env(rank):
         def _init():
-            render = "human" if rank == 0 else None
             env = GoBdxEnv(
-                render_mode=render,
+                render_mode=None,  # All training envs without render
                 curriculum_stage=start_stage,
                 max_episode_steps=250,
                 randomize=True,
@@ -101,9 +119,19 @@ def train_visual(
             return env
         return _init
     
-    print(f"Creating {n_envs} environments (env[0] with viewer)...")
+    print(f"Creating {n_envs} training environments...")
     env_fns = [make_env(i) for i in range(n_envs)]
     vec_env = DummyVecEnv(env_fns)
+    
+    # Create separate render environment for visualization
+    print("Creating render environment...")
+    render_env = GoBdxEnv(
+        render_mode="human",
+        curriculum_stage=start_stage,
+        max_episode_steps=250,
+        randomize=True,
+    )
+    render_env.reset(seed=9999)
     
     print(f"Obs space: {vec_env.observation_space.shape}")
     print(f"Act space: {vec_env.action_space.shape}")
@@ -135,7 +163,7 @@ def train_visual(
     )
     
     # Callback for rendering and progress
-    callback = RenderCallback(curriculum)
+    callback = RenderCallback(render_env, curriculum)
     
     print("=" * 60)
     print("Training started! Watch the MuJoCo viewer.")
