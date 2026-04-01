@@ -1,0 +1,9 @@
+# Generated files
+go_bdx.xml
+__pycache__/
+*.pyc
+
+# Test/debug scripts
+diagnose_*.py
+test_*.py
+visual_test.py
