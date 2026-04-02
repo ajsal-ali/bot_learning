@@ -21,14 +21,15 @@ class GoBdxEnv(gym.Env):
     """
     GO-BDX Bipedal Robot Environment
     
-    Observation Space (43 dims):
+    Observation Space (54 dims):
         - Body height (1)
         - Body orientation quaternion (4)
         - Body linear velocity (3)
         - Body angular velocity (3)
         - Leg joint positions (10)
         - Leg joint velocities (10)
-        - Previous action (10)
+        - Previous action t-1 (10)
+        - Previous action t-2 (10)
         - Target velocity (1)
         - Gait phase sin/cos (2)
     
@@ -38,6 +39,13 @@ class GoBdxEnv(gym.Env):
     
     Reward:
         - Depends on curriculum stage (standing, balance, stepping, walking)
+    
+    Observation Noise (for sim2real robustness):
+        - Joint positions: ±0.03 rad
+        - Joint velocities: ±2.5 rad/s
+        - Linear velocity: ±0.1 m/s
+        - Angular velocity: ±0.1 rad/s
+        - Height: ±0.01 m
     """
     
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
@@ -70,6 +78,16 @@ class GoBdxEnv(gym.Env):
     FALL_HEIGHT = 0.12          # Height below which robot is considered fallen
     MAX_TILT = 0.78             # ~45 degrees max roll/pitch before termination
     
+    # Observation noise scales (for domain randomization / sim2real)
+    NOISE_SCALES = {
+        'joint_pos': 0.03,      # rad
+        'joint_vel': 2.5,       # rad/s
+        'lin_vel': 0.1,         # m/s
+        'ang_vel': 0.1,         # rad/s
+        'height': 0.01,         # m
+        'quat': 0.05,           # quaternion components
+    }
+    
     def __init__(
         self,
         render_mode: Optional[str] = None,
@@ -77,6 +95,7 @@ class GoBdxEnv(gym.Env):
         curriculum_stage: int = 1,
         target_velocity: float = 0.0,
         randomize: bool = True,
+        obs_noise: bool = True,
     ):
         """
         Initialize the GO-BDX environment.
@@ -87,6 +106,7 @@ class GoBdxEnv(gym.Env):
             curriculum_stage: 1=standing, 2=balance, 3=stepping, 4=walking
             target_velocity: Target forward velocity for walking stage
             randomize: Whether to add random perturbations on reset
+            obs_noise: Whether to add observation noise (for sim2real robustness)
         """
         super().__init__()
         
@@ -95,6 +115,7 @@ class GoBdxEnv(gym.Env):
         self.curriculum_stage = curriculum_stage
         self.target_velocity = target_velocity
         self.randomize = randomize
+        self.obs_noise = obs_noise
         
         # Load MuJoCo model
         model_path = os.path.join(os.path.dirname(__file__), "..", "go_bdx.xml")
@@ -116,11 +137,11 @@ class GoBdxEnv(gym.Env):
         self.base_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "floating_base")
         
         # Define observation and action spaces
-        # Observation: 44 dimensions
+        # Observation: 54 dimensions
         # 1 (height) + 4 (quat) + 3 (lin_vel) + 3 (ang_vel) + 10 (joint_pos) + 
-        # 10 (joint_vel) + 10 (prev_action) + 1 (target_vel) + 2 (gait phase) = 44
+        # 10 (joint_vel) + 10 (prev_action t-1) + 10 (prev_action t-2) + 1 (target_vel) + 2 (gait phase) = 54
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(44,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(54,), dtype=np.float32
         )
         
         # Action: 10 leg joints, normalized [-1, 1]
@@ -131,6 +152,7 @@ class GoBdxEnv(gym.Env):
         # State tracking
         self.step_count = 0
         self.prev_action = np.zeros(10, dtype=np.float32)
+        self.prev_prev_action = np.zeros(10, dtype=np.float32)
         self.gait_phase = 0.0
         self.episode_reward = 0.0
         
@@ -143,35 +165,52 @@ class GoBdxEnv(gym.Env):
         self.viewer = None
         
     def _get_obs(self) -> np.ndarray:
-        """Build observation vector from current state."""
+        """Build observation vector from current state with optional noise."""
         obs = []
         
-        # Body height (1)
+        # Body height (1) - with noise
         height = self.data.qpos[2]
+        if self.obs_noise:
+            height += np.random.uniform(-self.NOISE_SCALES['height'], self.NOISE_SCALES['height'])
         obs.append(height)
         
-        # Body orientation quaternion (4) - wxyz
+        # Body orientation quaternion (4) - wxyz, with noise
         quat = self.data.qpos[3:7].copy()
+        if self.obs_noise:
+            quat += np.random.uniform(-self.NOISE_SCALES['quat'], self.NOISE_SCALES['quat'], size=4)
+            # Renormalize quaternion
+            quat = quat / np.linalg.norm(quat)
         obs.extend(quat)
         
-        # Body linear velocity (3)
+        # Body linear velocity (3) - with noise
         lin_vel = self.data.qvel[0:3].copy()
+        if self.obs_noise:
+            lin_vel += np.random.uniform(-self.NOISE_SCALES['lin_vel'], self.NOISE_SCALES['lin_vel'], size=3)
         obs.extend(lin_vel)
         
-        # Body angular velocity (3)
+        # Body angular velocity (3) - with noise
         ang_vel = self.data.qvel[3:6].copy()
+        if self.obs_noise:
+            ang_vel += np.random.uniform(-self.NOISE_SCALES['ang_vel'], self.NOISE_SCALES['ang_vel'], size=3)
         obs.extend(ang_vel)
         
-        # Leg joint positions (10)
+        # Leg joint positions (10) - with noise
         joint_pos = np.array([self.data.qpos[addr] for addr in self.JOINT_QPOS_ADDRS])
+        if self.obs_noise:
+            joint_pos += np.random.uniform(-self.NOISE_SCALES['joint_pos'], self.NOISE_SCALES['joint_pos'], size=10)
         obs.extend(joint_pos)
         
-        # Leg joint velocities (10)
+        # Leg joint velocities (10) - with noise
         joint_vel = np.array([self.data.qvel[addr] for addr in self.JOINT_QVEL_ADDRS])
+        if self.obs_noise:
+            joint_vel += np.random.uniform(-self.NOISE_SCALES['joint_vel'], self.NOISE_SCALES['joint_vel'], size=10)
         obs.extend(joint_vel)
         
-        # Previous action (10)
+        # Previous action t-1 (10)
         obs.extend(self.prev_action)
+        
+        # Previous action t-2 (10)
+        obs.extend(self.prev_prev_action)
         
         # Target velocity (1)
         obs.append(self.target_velocity)
@@ -475,8 +514,8 @@ class GoBdxEnv(gym.Env):
         Returns:
             observation, reward, terminated, truncated, info
         """
-        # Store previous action for smoothness calculation
-        self._prev_prev_action = self.prev_action.copy()
+        # Store previous actions for action history
+        self.prev_prev_action = self.prev_action.copy()
         self.prev_action = action.copy()
         
         # Apply action
@@ -586,7 +625,7 @@ class GoBdxEnv(gym.Env):
         # Reset state
         self.step_count = 0
         self.prev_action = np.zeros(10, dtype=np.float32)
-        self._prev_prev_action = np.zeros(10, dtype=np.float32)
+        self.prev_prev_action = np.zeros(10, dtype=np.float32)
         self.gait_phase = 0.0
         self.episode_reward = 0.0
         self.push_count = 0
