@@ -183,9 +183,17 @@ class GoBdxEnv(gym.Env):
         return np.array(obs, dtype=np.float32)
     
     def _apply_action(self, action: np.ndarray):
-        """Apply action to the robot."""
+        """Apply action to the robot with rate limiting."""
+        # Action rate limiting - prevent violent jerks
+        MAX_ACTION_CHANGE = 0.1  # Max 10% change per step
+        action_clamped = np.clip(
+            action, 
+            self.prev_action - MAX_ACTION_CHANGE, 
+            self.prev_action + MAX_ACTION_CHANGE
+        )
+        
         # Scale action
-        scaled_action = action * self.ACTION_SCALES
+        scaled_action = action_clamped * self.ACTION_SCALES
         
         # Zero all controls first (head/neck stay at 0)
         self.data.ctrl[:] = 0
