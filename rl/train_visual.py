@@ -28,8 +28,8 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 
-from go_bdx_env import GoBdxEnv
-from curriculum import CurriculumScheduler
+from .go_bdx_env import GoBdxEnv
+from .curriculum import CurriculumScheduler
 
 
 class TrainingLogger:
