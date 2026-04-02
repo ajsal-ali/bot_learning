@@ -95,7 +95,7 @@ class GoBdxEnv(gym.Env):
         curriculum_stage: int = 1,
         target_velocity: float = 0.0,
         randomize: bool = True,
-        obs_noise: bool = True,
+        obs_noise: bool = False,
     ):
         """
         Initialize the GO-BDX environment.
