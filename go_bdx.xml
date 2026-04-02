@@ -1,0 +1,125 @@
+<mujoco model="go_bdx">
+  <compiler angle="radian" meshdir="meshes"/>
+
+  <asset>
+    <mesh name="body_link_visuals" content_type="model/obj" file="body_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="head_link_visuals" content_type="model/obj" file="head_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="head_pitch_link_visuals" content_type="model/obj" file="head_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="hip_pitch_left_link_visuals" content_type="model/obj" file="hip_pitch_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="hip_pitch_right_link_visuals" content_type="model/obj" file="hip_pitch_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+    <mesh name="hip_roll_left_link_visuals" content_type="model/obj" file="hip_roll_left_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="hip_roll_right_link_visuals" content_type="model/obj" file="hip_roll_right_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+    <mesh name="left_antenna_link_visuals" content_type="model/obj" file="left_antenna_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="left_foot_link_visuals" content_type="model/obj" file="left_foot_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="left_lower_leg_link_visuals" content_type="model/obj" file="left_lower_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="left_upper_leg_link_visuals" content_type="model/obj" file="left_upper_leg_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="neck_pitch_link_visuals" content_type="model/obj" file="neck_pitch_link_visuals.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="right_antenna_link_visuals" content_type="model/obj" file="right_antenna_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+    <mesh name="right_foot_link_visuals" content_type="model/obj" file="right_foot_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+    <mesh name="right_lower_leg_link_visuals" content_type="model/obj" file="right_lower_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+    <mesh name="right_upper_leg_link_visuals" content_type="model/obj" file="right_upper_leg_link_visuals.obj" scale="-0.001 -0.001 -0.001"/>
+  </asset>
+
+  <worldbody>
+    <light name="light" pos="0 0 3" dir="0 0 -1" diffuse="1 1 1"/>
+    <geom name="floor" type="plane" size="10 10 0.1" rgba="0.5 0.5 0.5 1"/>
+    <body name="floating_base" pos="0 0 0.3">
+      <freejoint name="root"/>
+
+          <geom type="mesh" mesh="body_link_visuals"/>
+          <body name="hip_roll_left_link" pos="0.0456 0.09849 -0.01723">
+      <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+      <joint name="left_hip_roll" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+      <geom type="mesh" mesh="hip_roll_left_link_visuals"/>
+      <body name="hip_pitch_left_link" pos="-0.00079 -0.01022 -0.00168" quat="0.499998 -0.5 0.5 0.500002">
+        <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+        <joint name="left_hip_pitch" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+        <geom quat="0.499998 0.5 -0.500002 -0.5" type="mesh" mesh="hip_pitch_left_link_visuals"/>
+        <body name="left_upper_leg_link" pos="0.00246 -0.11832 0.01368" quat="0.707105 0.707108 0 0">
+          <inertial pos="0 0 0" mass="2" diaginertia="0.0001 0.0001 0.0001"/>
+          <joint name="left_hip_yaw" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+          <geom quat="0.707106 0 -0.707108 0" type="mesh" mesh="left_upper_leg_link_visuals"/>
+          <body name="left_lower_leg_link" pos="0.0743 0.08022 -0.07015">
+            <inertial pos="0 0 0" mass="1" diaginertia="0.0001 0.0001 0.0001"/>
+            <joint name="left_shin" pos="0 0 0" axis="0 0 1" range="-2.0 2.0" damping="5.0" armature="0.05"/>
+            <geom quat="0.707106 0 -0.707108 0" type="mesh" mesh="left_lower_leg_link_visuals"/>
+            <body name="left_foot_link" pos="0.12764 -0.04346 0.03058">
+              <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+              <joint name="left_foot" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+              <geom quat="0.707106 0 -0.707108 0" type="mesh" mesh="left_foot_link_visuals"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="neck_pitch_link" pos="-0.01146 0.02357 0.0852" quat="0.707105 0 0.707108 0">
+      <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+      <joint name="neck" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+      <geom quat="-0.707106 -3.2817e-08 0.707108 -3.2817e-08" type="mesh" mesh="neck_pitch_link_visuals"/>
+      <body name="head_pitch_link" pos="-0.1124 0.06502 0.00466">
+        <inertial pos="0 0 0" mass="0.2" diaginertia="0.0001 0.0001 0.0001"/>
+        <joint name="head_pitch" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+        <geom quat="-0.707106 -3.2817e-08 0.707108 -3.2817e-08" type="mesh" mesh="head_pitch_link_visuals"/>
+        <body name="head_link" pos="-0.03592 0.00602 0.00021" quat="-0.707105 -3.2817e-08 0.707108 -3.2817e-08">
+          <inertial pos="0 0 0" mass="5" diaginertia="0.0001 0.0001 0.0001"/>
+          <joint name="head_yaw" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+          <geom type="mesh" mesh="head_link_visuals"/>
+          <body name="left_antenna_link" pos="0.09909 0.12038 0.02156" quat="0.707105 0 0.707108 0">
+            <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001 0.0001 0.0001"/>
+            <joint name="left_antenna" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+            <geom quat="-0.707106 -3.2817e-08 0.707108 -3.2817e-08" type="mesh" mesh="left_antenna_link_visuals"/>
+          </body>
+          <body name="right_antenna_link" pos="-0.10121 0.12038 0.02156" quat="8.67473e-07 -0.707105 8.67477e-07 0.707108">
+            <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001 0.0001 0.0001"/>
+            <joint name="right_antenna" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+            <geom quat="0.707105 0 0.707108 0" type="mesh" mesh="right_antenna_link_visuals"/>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="hip_roll_right_link" pos="-0.0456 0.09849 -0.01723" quat="1.32679e-06 0 0 1">
+      <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+      <joint name="right_hip_roll" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+      <geom quat="-2.32051e-08 1 0 0" type="mesh" mesh="hip_roll_right_link_visuals"/>
+      <body name="hip_pitch_right_link" pos="-0.00079 0.01022 -0.00168" quat="9.38184e-07 -9.38187e-07 -0.707108 0.707105">
+        <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+        <joint name="right_hip_pitch" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+        <geom quat="0.707105 0.707108 0 0" type="mesh" mesh="hip_pitch_right_link_visuals"/>
+        <body name="right_upper_leg_link" pos="-0.11832 0.00246 0.01368" quat="0.499998 -0.5 -0.500002 0.5">
+          <inertial pos="0 0 0" mass="2" diaginertia="0.0001 0.0001 0.0001"/>
+          <joint name="right_hip_yaw" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" damping="10.0" armature="0.1"/>
+          <geom quat="0.707105 0 0.707108 0" type="mesh" mesh="right_upper_leg_link_visuals"/>
+          <body name="right_lower_leg_link" pos="0.0743 -0.08022 -0.07015">
+            <inertial pos="0 0 0" mass="1" diaginertia="0.0001 0.0001 0.0001"/>
+            <joint name="right_shin" pos="0 0 0" axis="0 0 1" range="-2.0 2.0" damping="5.0" armature="0.05"/>
+            <geom quat="0.707105 0 0.707108 0" type="mesh" mesh="right_lower_leg_link_visuals"/>
+            <body name="right_foot_link" pos="0.12764 0.04346 0.03058">
+              <inertial pos="0 0 0" mass="0.5" diaginertia="0.0001 0.0001 0.0001"/>
+              <joint name="right_foot" pos="0 0 0" axis="0 0 1" range="-0.7854 0.7854" damping="5.0" armature="0.05"/>
+              <geom quat="0.707105 0 0.707108 0" type="mesh" mesh="right_foot_link_visuals"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+      </body>
+  </worldbody>
+
+  <actuator>
+    <position name="left_hip_roll_motor" joint="left_hip_roll" kp="2000" kv="100" ctrlrange="-1.5 1.5"/>
+    <position name="left_hip_pitch_motor" joint="left_hip_pitch" kp="1000" kv="50" ctrlrange="-1.5 1.5"/>
+    <position name="left_hip_yaw_motor" joint="left_hip_yaw" kp="500" kv="30" ctrlrange="-1.5 1.5"/>
+    <position name="left_shin_motor" joint="left_shin" kp="300" kv="20" ctrlrange="-1.5 1.5"/>
+    <position name="left_foot_motor" joint="left_foot" kp="300" kv="20" ctrlrange="-1.5 1.5"/>
+    <position name="neck_motor" joint="neck" kp="100" kv="10" ctrlrange="-1.5 1.5"/>
+    <position name="head_pitch_motor" joint="head_pitch" kp="100" kv="10" ctrlrange="-1.5 1.5"/>
+    <position name="head_yaw_motor" joint="head_yaw" kp="100" kv="10" ctrlrange="-1.5 1.5"/>
+    <position name="left_antenna_motor" joint="left_antenna" kp="100" kv="10" ctrlrange="-1.5 1.5"/>
+    <position name="right_antenna_motor" joint="right_antenna" kp="100" kv="10" ctrlrange="-1.5 1.5"/>
+    <position name="right_hip_roll_motor" joint="right_hip_roll" kp="2000" kv="100" ctrlrange="-1.5 1.5"/>
+    <position name="right_hip_pitch_motor" joint="right_hip_pitch" kp="1000" kv="50" ctrlrange="-1.5 1.5"/>
+    <position name="right_hip_yaw_motor" joint="right_hip_yaw" kp="500" kv="30" ctrlrange="-1.5 1.5"/>
+    <position name="right_shin_motor" joint="right_shin" kp="300" kv="20" ctrlrange="-1.5 1.5"/>
+    <position name="right_foot_motor" joint="right_foot" kp="300" kv="20" ctrlrange="-1.5 1.5"/>
+  </actuator>
+</mujoco>
