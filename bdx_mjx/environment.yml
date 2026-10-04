@@ -1,0 +1,14 @@
+# GPU training env for Linux (or WSL2) with an NVIDIA driver >= 525.
+#   conda env create -f bdx_mjx/environment.yml
+#   conda activate bdx
+#   python -c "import jax; print(jax.devices())"   # must list a CudaDevice
+name: bdx
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - ffmpeg  # lets play.py write .mp4 instead of .gif
+  - pip:
+      - "jax[cuda12]==0.9.2"
+      - -r requirements.txt

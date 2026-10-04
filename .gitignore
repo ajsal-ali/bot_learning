@@ -6,3 +6,6 @@ __pycache__/
 diagnose_*.py
 test_*.py
 visual_test.py
+
+# Training runs (bdx_mjx/train.py output)
+runs/

@@ -2,6 +2,9 @@
 
 MuJoCo physics simulation for the GO-BDX bipedal robot, ready for reinforcement learning.
 
+> **Walking RL lives in [`bdx_mjx/`](bdx_mjx/README.md)**: GPU training with MJX + Brax PPO,
+> plus a corrected robot model. `rl/` and `rl_forwalking/` are the old pipelines, kept only for reference.
+
 ## Requirements
 
 ```bash
