@@ -13,22 +13,29 @@ bdx_mjx/
   policy.py               NumPy-only policy + WalkController (same code for sim and real robot)
   play.py                 watch it at real time, record a video, or run the push-survival test
   mjx_env.py, wrapper.py  env base class + Brax wrappers, vendored from MuJoCo Playground
-  slurm/train_gpu.slurm   ParamShakti job: 1 V100, train -> push test -> videos
+  slurm/                  ParamShakti scripts (see Setup)
+  requirements-lock-linux.txt   exact package versions for the cluster
 ```
 
 ## Setup
 
-JAX only runs on the GPU on **Linux** (or WSL2 on Windows). Native Windows works,
-but on the CPU: fine for testing and `play.py`, far too slow for real training.
+JAX only runs on the GPU on **Linux**. Native Windows works, but on the CPU:
+fine for testing and `play.py`, far too slow for real training.
 
-**Cluster / Linux + NVIDIA (conda-forge only, no pip):**
+**ParamShakti (CentOS 7, V100).** JAX can't run on the host (glibc 2.17 is
+too old), so it runs in a small Apptainer container (Debian, Python 3.11),
+with the packages in a venv on scratch. One-time setup:
 ```bash
-conda env create -f bdx_mjx/environment.yml      # creates env "bdx"
-conda activate bdx
-python -c "import jax; print(jax.devices())"     # on a GPU node: must show CudaDevice
+# 1. get the ~93 Linux wheels into /scratch/scratch26/23me36008/bdx_env/wheels/, either
+bash bdx_mjx/slurm/fetch_env.sh                  # on the login node (slow network), or
+python bdx_mjx/slurm/download_wheels_pc.py       # on your PC, then scp wheels_linux/* there
+                                                 # (then run fetch_env.sh once: it pulls the image)
+# 2. install them offline in a job (shared partition)
+mkdir -p logs && sbatch bdx_mjx/slurm/install_env.slurm
 ```
-On ParamShakti: `mkdir -p logs && sbatch bdx_mjx/slurm/train_gpu.slurm`. The
-script header explains the CPU/RAM/env-count sizing.
+Then train with `sbatch bdx_mjx/slurm/train_gpu.slurm`. Its header explains the
+CPU/RAM/env-count sizing. `slurm/env.sh` holds the paths and picks a working
+apptainer module.
 
 **This Windows PC** (already set up in the `grounding` conda env, CPU JAX):
 ```bash

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Env base class, trimmed from MuJoCo Playground 0.2.0's mjx_env.py.
 
-Vendored so playground does not need to be installed (conda-forge only has 0.0.3).
+Vendored so playground does not need to be installed (the conda-forge build is too old).
 """
 
 import abc

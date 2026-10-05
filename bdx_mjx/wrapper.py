@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Brax training wrappers, vendored from MuJoCo Playground 0.2.0 (Apache-2.0)
-so playground does not need to be installed (conda-forge only has 0.0.3)."""
+so playground does not need to be installed (the conda-forge build is too old)."""
 
 import contextlib
 from typing import Any, Callable, List, Optional, Sequence, Tuple

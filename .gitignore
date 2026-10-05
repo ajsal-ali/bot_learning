@@ -9,5 +9,5 @@ visual_test.py
 
 # Training runs (bdx_mjx/train.py output)
 runs/
-bdx_mjx/slurm/env_resolve.*
-bdx_mjx/slurm/env_explicit.txt
+# Linux wheels downloaded on the PC for the cluster (download_wheels_pc.py)
+wheels_linux/

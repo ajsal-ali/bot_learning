@@ -27,12 +27,28 @@ mkdir -p "$WHEELS"
 mapfile -t PKGS < <(grep -vE '^\s*(#|$)' "$PROJECT/bdx_mjx/requirements-lock-linux.txt")
 N=${#PKGS[@]}
 START=$SECONDS
-for i in "${!PKGS[@]}"; do
-  echo ""
-  echo "[$((i + 1))/$N] ${PKGS[$i]}   (total so far: $(du -sh "$WHEELS" | cut -f1), $((SECONDS - START)) s)"
-  in_container "$SIF" python -m pip download --no-deps --only-binary=:all: \
-      --progress-bar on --disable-pip-version-check --dest "$WHEELS" "${PKGS[$i]}"
-done
+# JOBS parallel downloads (login nodes often throttle per connection, so this
+# multiplies the speed). JOBS=1 gives one-at-a-time with progress bars.
+JOBS=${JOBS:-6}
+if [ "$JOBS" -le 1 ]; then
+  for i in "${!PKGS[@]}"; do
+    echo ""
+    echo "[$((i + 1))/$N] ${PKGS[$i]}   (total so far: $(du -sh "$WHEELS" | cut -f1), $((SECONDS - START)) s)"
+    in_container "$SIF" python -m pip download --no-deps --only-binary=:all: \
+        --progress-bar on --disable-pip-version-check --dest "$WHEELS" "${PKGS[$i]}"
+  done
+else
+  echo "==> $N packages, $JOBS at a time; one line per finished package"
+  export -f in_container
+  export CT SIF WHEELS
+  printf '%s\n' "${PKGS[@]}" | xargs -P "$JOBS" -I{} bash -c '
+    if in_container "$SIF" python -m pip download --no-deps --only-binary=:all: \
+         --quiet --disable-pip-version-check --dest "$WHEELS" "{}"; then
+      echo "done   {}   ($(du -sh "$WHEELS" | cut -f1) so far)"
+    else
+      echo "FAILED {}  - rerun the script to retry"
+    fi'
+fi
 echo ""
 echo "==> $(ls "$WHEELS" | wc -l) wheels, $(du -sh "$WHEELS" | cut -f1), $((SECONDS - START)) s"
 echo "==> now: sbatch bdx_mjx/slurm/install_env.slurm"
