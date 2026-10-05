@@ -57,32 +57,29 @@ echo "Job ID: $SLURM_JOB_ID  Node: $(hostname)"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 
-source ~/.bashrc
-conda activate bdx
-echo "Python: $(which python)"
-python --version
-
 PROJECT=/scratch/scratch26/23me36008/bot_learning
 cd "$PROJECT"
 mkdir -p logs runs
+# Container + venv (see env.sh: CentOS 7's glibc is too old for JAX on the host).
+source bdx_mjx/slurm/env.sh
+[ -x "$VENV/bin/python" ] || { echo "no venv - run fetch_env.sh + install_env.slurm first" >&2; exit 1; }
+# --nv passes the host's NVIDIA driver and the allocated V100 into the container.
+PY="in_container --nv $SIF $VENV/bin/python"
 
-# JAX/XLA: pre-allocate 90% of the GPU for itself (fast).
+# JAX/XLA: pre-allocate 90% of the GPU for itself (fast). Exported env vars
+# pass into the container automatically.
 export XLA_PYTHON_CLIENT_MEM_FRACTION=0.90
 # Keep the few CPU-side libraries from spawning 40-thread pools.
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 export OPENBLAS_NUM_THREADS=4
-# For the video at the end (headless). Uses your EGL setup if present.
-export MUJOCO_GL=egl
-unset DISPLAY
-[ -f ~/.mavrl_gl_env ] && . ~/.mavrl_gl_env
 
 echo "===== CHECK ====="
-python - <<'EOF'
+$PY - <<'EOF'
 import jax, brax, mujoco
 print("jax", jax.__version__, "brax", brax.__version__, "mujoco", mujoco.__version__)
 print("devices", jax.devices())
-assert jax.default_backend() == "gpu", "JAX is not on the GPU - check the jaxlib cuda12 build"
+assert jax.default_backend() == "gpu", "JAX is not on the GPU inside the container"
 EOF
 
 RUN_NAME=walk_${SLURM_JOB_ID}
@@ -94,7 +91,7 @@ RESUME=""
 # ...and to skip phases already done, add e.g. "--start-phase 3" to RESUME.
 
 echo "===== TRAIN ====="
-python -u -m bdx_mjx.train \
+$PY -u -m bdx_mjx.train \
     --preset         gpu \
     --num-envs       "$NUM_ENVS" \
     --num-timesteps  "$TIMESTEPS" \
@@ -105,16 +102,10 @@ python -u -m bdx_mjx.train \
 
 echo "===== PUSH TEST ====="
 # Plain MuJoCo on the CPU, no rendering: survival rate vs push force.
-python -m bdx_mjx.play "runs/$RUN_NAME" --push-test | tee "runs/$RUN_NAME/push_test.txt"
+$PY -m bdx_mjx.play "runs/$RUN_NAME" --push-test | tee "runs/$RUN_NAME/push_test.txt"
 
-echo "===== VIDEO ====="
-# Short clips at three commands. Rendering needs EGL; if it is not available the
-# training result is still fine - copy runs/$RUN_NAME/ to your PC and run play.py there.
-for cmd in "0.3 0 0" "0 0 0" "0.2 0 0.5"; do
-    tag=$(echo "$cmd" | tr ' .' '__')
-    python -m bdx_mjx.play "runs/$RUN_NAME" --video "runs/$RUN_NAME/walk_${tag}.mp4" \
-        --seconds 10 --cmd $cmd || echo "video failed for cmd=$cmd (EGL?)"
-done
+# No videos here: the minimal container has no OpenGL. Copy runs/$RUN_NAME/
+# to your PC and use play.py there (viewer, or --video).
 
 echo "===== DONE ====="
 echo "run dir: $PROJECT/runs/$RUN_NAME"
