@@ -27,8 +27,10 @@ echo "Job ID: $SLURM_JOB_ID  Node: $(hostname)"
 echo "===== INSTALL (offline) ====="
 rm -rf "$VENV"
 in_container "$SIF" python -m venv "$VENV"
-in_container "$SIF" "$VENV/bin/pip" install --no-index --find-links "$WHEELS" \
-    -r "$PROJECT/bdx_mjx/requirements.txt" "jax[cuda12]==0.9.2"
+in_container "$SIF" "$VENV/bin/pip" install --no-deps --no-index --find-links "$WHEELS" \
+    -r "$PROJECT/bdx_mjx/requirements-lock-linux.txt"
+# --no-deps skipped the resolver; confirm nothing is missing or mismatched.
+in_container "$SIF" "$VENV/bin/pip" check
 
 echo "===== CHECK ====="
 # No GPU on this node: JAX warns and falls back to CPU - expected. The GPU
