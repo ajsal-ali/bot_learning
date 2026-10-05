@@ -9,13 +9,13 @@
 # and turning the one pure-Python source package (gym, needed by brax) into a
 # wheel - seconds, far from the login node's 30-minute limit.
 
-set -euo pipefail
+set -eo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/env.sh"
 
 if [ ! -f "$SIF" ]; then
   echo "==> pulling container image -> $SIF"
-  apptainer pull "$SIF" docker://python:3.11-slim-bookworm
+  "$CT" pull "$SIF" docker://python:3.11-slim-bookworm
 fi
 in_container "$SIF" python --version
 

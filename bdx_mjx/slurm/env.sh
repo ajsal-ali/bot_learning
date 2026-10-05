@@ -21,10 +21,21 @@ mkdir -p "$BDX_ENV" "$APPTAINER_CACHEDIR" "$APPTAINER_TMPDIR"
 # Batch shells may not have `module` defined yet.
 type module >/dev/null 2>&1 || source ~/.bashrc
 type module >/dev/null 2>&1 || source /etc/profile.d/modules.sh
-module load apps/apptainer/1.4.0
+# Use the first container module that actually runs (apptainer 1.4.0 on
+# ParamShakti fails with a missing libsubid.so.3).
+CT=""
+for mod in apps/apptainer/1.2.5:apptainer apps/singularity/3.4.1:singularity \
+           apps/apptainer/1.4.0:apptainer; do
+  module purge >/dev/null 2>&1
+  module load "${mod%%:*}" >/dev/null 2>&1 || continue
+  if "${mod##*:}" --version >/dev/null 2>&1; then CT="${mod##*:}"; break; fi
+done
+[ -n "$CT" ] || { echo "!! no working apptainer/singularity module" >&2; return 1 2>/dev/null || exit 1; }
+echo "container runtime: $($CT --version)"
+export SINGULARITY_CACHEDIR=$APPTAINER_CACHEDIR SINGULARITY_TMPDIR=$APPTAINER_TMPDIR
 
 # Run a command inside the container. Scratch is bound so the project,
 # wheels and venv are visible; home is bound by default.
 in_container() {
-  apptainer exec --bind /scratch/scratch26/23me36008 "$@"
+  "$CT" exec --bind /scratch/scratch26/23me36008 "$@"
 }
