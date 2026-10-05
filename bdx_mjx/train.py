@@ -6,13 +6,22 @@
     python -m bdx_mjx.train --preset cpu         # no GPU: ~30 min learning check
     python -m bdx_mjx.train --preset cpu_test    # smoke test anywhere, minutes
 
-    # resume from a checkpoint (step counter restarts, weights + normalizer kept)
-    python -m bdx_mjx.train --preset gpu --resume runs/<run>/checkpoints/latest.pkl
+    # resume from a checkpoint (weights + normalizer kept), e.g. into phase 3
+    python -m bdx_mjx.train --preset gpu --resume runs/<run>/checkpoints/latest.pkl --start-phase 3
+
+Training runs the CURRICULUM phases back to back (same network, each phase
+starts from the previous one's weights). Only the push strength changes:
+    1 walk       30% of steps   pushes  5-20 N  (the stiff stance survives these)
+    2 push       30%            pushes 10-40 N
+    3 hard_push  40%            pushes 10-55 N  (needs recovery steps)
+Commands, gait and rewards are the same in every phase, so nothing learned is
+thrown away between phases.
 
 Each run writes runs/<name>/:
     config.json        env + PPO config (play.py rebuilds everything from it)
     progress.csv/png   eval reward, episode length, reward terms vs. env steps
-    checkpoints/       latest.pkl (+ one per eval) - Brax params, for --resume
+    checkpoints/       latest.pkl, one per eval, and phase<N>_<name>.pkl at the
+                       end of each phase - Brax params, for --resume
     policy.npz         NumPy-only policy for play.py / the real robot
 """
 
@@ -58,6 +67,13 @@ PPO_DEFAULTS = dict(
     action_repeat=1,
 )
 
+# (name, fraction of num_timesteps, push force range [N]). See the docstring.
+CURRICULUM = (
+    ("walk", 0.30, (5.0, 20.0)),
+    ("push", 0.30, (10.0, 40.0)),
+    ("hard_push", 0.40, (10.0, 55.0)),
+)
+
 NETWORK = dict(
     policy_hidden_layer_sizes=(512, 256, 128),
     value_hidden_layer_sizes=(512, 256, 128),
@@ -77,6 +93,8 @@ def parse_args():
   p.add_argument("--run-name", default=None)
   p.add_argument("--runs-dir", default="runs")
   p.add_argument("--resume", default=None, help="path to a checkpoints/*.pkl")
+  p.add_argument("--start-phase", type=int, default=1, choices=range(1, len(CURRICULUM) + 1),
+                 help="curriculum phase to start at (use with --resume)")
   return p.parse_args()
 
 
@@ -84,7 +102,6 @@ def main():
   args = parse_args()
 
   # Must be set before JAX is imported.
-  os.environ.setdefault("XLA_FLAGS", "--xla_gpu_triton_gemm_any=True")
   os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.9")
 
   import jax
@@ -93,7 +110,7 @@ def main():
   import matplotlib.pyplot as plt
   from brax.training.agents.ppo import networks as ppo_networks
   from brax.training.agents.ppo import train as ppo
-  from mujoco_playground._src import wrapper
+  from bdx_mjx import wrapper
 
   from bdx_mjx import joystick
   from bdx_mjx import policy as policy_lib
@@ -114,10 +131,15 @@ def main():
   assert (ppo_cfg["batch_size"] * ppo_cfg["num_minibatches"]) % ppo_cfg["num_envs"] == 0, \
       "batch_size * num_minibatches must be a multiple of num_envs"
 
-  env_cfg = joystick.default_config()
-  env_cfg.impl = args.impl
-  env_cfg.episode_length = ppo_cfg["episode_length"]
-  env_cfg.naconmax = 8 * ppo_cfg["num_envs"]  # 2 feet x 4 box-plane contacts
+  def make_env_cfg(push_force):
+    cfg = joystick.default_config()
+    cfg.impl = args.impl
+    cfg.episode_length = ppo_cfg["episode_length"]
+    cfg.naconmax = 8 * ppo_cfg["num_envs"]  # 2 feet x 4 box-plane contacts
+    cfg.push_config.force_range = list(push_force)
+    return cfg
+
+  env_cfg = make_env_cfg(CURRICULUM[-1][2])  # final-phase config, for config.json
 
   run_name = args.run_name or f"{args.preset}_{datetime.datetime.now():%Y%m%d_%H%M%S}"
   run_dir = os.path.join(args.runs_dir, run_name)
@@ -125,12 +147,12 @@ def main():
   os.makedirs(ckpt_dir, exist_ok=True)
   with open(os.path.join(run_dir, "config.json"), "w") as f:
     json.dump({"env": env_cfg.to_dict(), "ppo": ppo_cfg, "network": NETWORK,
+               "curriculum": CURRICULUM, "start_phase": args.start_phase,
                "preset": args.preset, "seed": args.seed, "resume": args.resume}, f, indent=2)
   print(f"run dir: {run_dir}")
   print("ppo:", json.dumps(ppo_cfg))
 
-  env = joystick.Joystick(config=env_cfg)
-  eval_env = joystick.Joystick(config=env_cfg)
+  env = joystick.Joystick(config=env_cfg)  # for policy export (same in all phases)
 
   restore_params = None
   if args.resume:
@@ -143,13 +165,17 @@ def main():
   history = []
   t_start = time.time()
   last = {"t": t_start, "step": 0}
+  phase = {"num": 0, "name": "", "offset": 0, "boundaries": []}
 
-  def progress(step, metrics):
+  def progress(local_step, metrics):
     now = time.time()
-    sps = (step - last["step"]) / max(now - last["t"], 1e-9)
+    step = phase["offset"] + local_step
+    # local_step 0 is the eval at the start of a phase: no training happened.
+    sps = 0.0 if local_step == 0 else (step - last["step"]) / max(now - last["t"], 1e-9)
     last.update(t=now, step=step)
     row = {
         "step": step,
+        "phase": f'{phase["num"]}_{phase["name"]}',
         "minutes": (now - t_start) / 60,
         "steps_per_s": sps,
         "reward": float(metrics.get("eval/episode_reward", float("nan"))),
@@ -162,7 +188,7 @@ def main():
     row.update(terms)
     history.append(row)
 
-    print(f"[{step:>12,} steps | {row['minutes']:6.1f} min | {sps:>9,.0f} steps/s] "
+    print(f"[{row['phase']:>11s} | {step:>12,} steps | {row['minutes']:6.1f} min | {sps:>9,.0f} steps/s] "
           f"reward {row['reward']:8.2f} +- {row['reward_std']:6.2f}   "
           f"episode length {row['episode_length']:6.1f}")
     if terms:
@@ -190,35 +216,53 @@ def main():
       for a in ax:
         a.set_xlabel("env steps")
         a.grid(alpha=0.3)
+        for b in phase["boundaries"]:
+          a.axvline(b, ls=":", c="k", alpha=0.5)
       fig.tight_layout()
       fig.savefig(os.path.join(run_dir, "progress.png"), dpi=110)
       plt.close(fig)
 
-  def save_params(step, make_policy, params):
+  def save_params(local_step, make_policy, params, extra_names=()):
     del make_policy
     params = jax.device_get(params)
-    for name in (f"params_{step:012d}.pkl", "latest.pkl"):
+    step = phase["offset"] + local_step
+    for name in (f"params_{step:012d}.pkl", "latest.pkl", *extra_names):
       with open(os.path.join(ckpt_dir, name), "wb") as f:
         pickle.dump(params, f)
     policy_lib.export_npz(params, env, os.path.join(run_dir, "policy.npz"))
 
   network_factory = functools.partial(ppo_networks.make_ppo_networks, **NETWORK)
 
-  train_fn = functools.partial(
-      ppo.train,
-      **ppo_cfg,
-      network_factory=network_factory,
-      wrap_env_fn=wrapper.wrap_for_brax_training,
-      randomization_fn=domain_randomize,
-      progress_fn=progress,
-      policy_params_fn=save_params,
-      restore_params=restore_params,
-      seed=args.seed,
-  )
-
-  print("compiling (first iteration takes a few minutes)...")
+  params = restore_params
+  total = ppo_cfg["num_timesteps"]
   try:
-    train_fn(environment=env, eval_env=eval_env)
+    for num in range(args.start_phase, len(CURRICULUM) + 1):
+      name, fraction, push_force = CURRICULUM[num - 1]
+      phase.update(num=num, name=name)
+      phase_cfg = dict(ppo_cfg)
+      phase_cfg["num_timesteps"] = int(total * fraction)
+      phase_cfg["num_evals"] = max(2, round(ppo_cfg["num_evals"] * fraction))
+      cfg = make_env_cfg(push_force)
+      print(f"\n===== phase {num}/{len(CURRICULUM)}: {name} - "
+            f"{phase_cfg['num_timesteps']:,} steps, pushes {push_force[0]:g}-{push_force[1]:g} N"
+            f" =====\ncompiling (takes a few minutes)...")
+      _, params, _ = ppo.train(
+          environment=joystick.Joystick(config=cfg),
+          eval_env=joystick.Joystick(config=cfg),
+          **phase_cfg,
+          network_factory=network_factory,
+          wrap_env_fn=wrapper.wrap_for_brax_training,
+          randomization_fn=domain_randomize,
+          progress_fn=progress,
+          policy_params_fn=save_params,
+          restore_params=params,
+          seed=args.seed + num,
+      )
+      # Next phase starts from these weights (and observation normalizer).
+      save_params(last["step"] - phase["offset"], None, params,
+                  extra_names=(f"phase{num}_{name}.pkl",))
+      phase["offset"] = last["step"]
+      phase["boundaries"].append(last["step"])
   except KeyboardInterrupt:
     print("\ninterrupted - last checkpoint is in", ckpt_dir)
 

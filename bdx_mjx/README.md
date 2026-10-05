@@ -9,9 +9,11 @@ bdx_mjx/
   assets/xmls/            go_bdx_train.xml (no meshes, MJX) + go_bdx_view.xml (same physics + meshes)
   joystick.py             the task: follow a (vx, vy, yaw-rate) command with a periodic gait
   randomize.py            per-env domain randomization (friction, masses, motor gains, ...)
-  train.py                training entry point (presets, checkpoints, logs, policy export)
+  train.py                training entry point (curriculum phases, presets, checkpoints, logs, export)
   policy.py               NumPy-only policy + WalkController (same code for sim and real robot)
-  play.py                 watch it at real time in the MuJoCo viewer, or record a video
+  play.py                 watch it at real time, record a video, or run the push-survival test
+  mjx_env.py, wrapper.py  env base class + Brax wrappers, vendored from MuJoCo Playground
+  slurm/train_gpu.slurm   ParamShakti job: 1 V100, train -> push test -> videos
 ```
 
 ## Setup
@@ -19,12 +21,14 @@ bdx_mjx/
 JAX only runs on the GPU on **Linux** (or WSL2 on Windows). Native Windows works,
 but on the CPU: fine for testing and `play.py`, far too slow for real training.
 
-**Training PC (Linux + NVIDIA):**
+**Cluster / Linux + NVIDIA (conda-forge only, no pip):**
 ```bash
 conda env create -f bdx_mjx/environment.yml      # creates env "bdx"
 conda activate bdx
-python -c "import jax; print(jax.devices())"     # must show CudaDevice
+python -c "import jax; print(jax.devices())"     # on a GPU node: must show CudaDevice
 ```
+On ParamShakti: `mkdir -p logs && sbatch bdx_mjx/slurm/train_gpu.slurm`. The
+script header explains the CPU/RAM/env-count sizing.
 
 **This Windows PC** (already set up in the `grounding` conda env, CPU JAX):
 ```bash
@@ -44,6 +48,7 @@ python -m bdx_mjx.train --preset cpu_test    # 2-minute smoke test of the whole 
 # options
 --num-timesteps 300000000   --num-envs 4096   --seed 1   --run-name myrun
 --resume runs/<run>/checkpoints/latest.pkl    # continue from a checkpoint
+--start-phase 3                               # ...skipping curriculum phases already done
 --impl warp                                   # MuJoCo Warp backend (Linux GPU, untested here)
 ```
 The first iteration spends a few minutes compiling. After that it prints one line per
@@ -60,8 +65,11 @@ Copy `runs/<run>/` back to any PC to watch it, since `policy.npz` needs only Num
 python -m bdx_mjx.play runs/<run>                       # viewer, real time (1x)
 python -m bdx_mjx.play runs/<run> --cmd 0.3 0 0         # start walking forward at 0.3 m/s
 python -m bdx_mjx.play runs/<run> --video walk.mp4 --seconds 10 --cmd 0.3 0 0
+python -m bdx_mjx.play runs/<run> --push-test           # % of pushes survived, by force
 ```
-Viewer keys: ↑/↓ forward speed, ←/→ turn, PgUp/PgDn sideways, Home = stop, End = reset.
+Viewer keys: ↑/↓ forward speed, ←/→ turn, PgUp/PgDn sideways, Home = stop, End = reset,
+Insert = push the torso (`--push-force`, default 40 N). Or use MuJoCo's own: double-click
+the body, then Ctrl + right-drag.
 
 ## Why it's built this way
 
@@ -89,11 +97,29 @@ axis (yaw), `*_hip_pitch` about the forward axis (roll), and `*_hip_yaw` about t
 lateral axis (pitch). The names are kept so they match your hardware config.
 `constants.py` groups the joints by what they really do.
 
-**One task, no stage curriculum.** The policy always gets a velocity command,
-and standing is just the zero command. The reward is velocity tracking plus
-gait-clock foot height and feet air time (these break the "stand still and
-collect reward" optimum), minus penalties for tilt, jerk, torque, slip and
-legs crossing.
+**One task, with a push curriculum.** The policy always gets a velocity command,
+and standing is just the zero command (20% of the time). The reward is velocity
+tracking plus gait-clock foot height and feet air time, minus penalties for
+tilt, jerk, torque, slip and legs crossing. The gait-clock and air-time terms
+are what stop it from learning to "stand still and collect reward".
+
+There are no separate standing/balance/stepping stages: the reward never changes,
+because swapping reward functions mid-training breaks the value function. What
+ramps up is the pushes. A push is a horizontal force on the torso, in a random
+direction, for 0.1-0.2 s, every 4-8 s, while standing or walking:
+
+| phase | share of steps | push force | why |
+|---|---|---|---|
+| 1 walk | 30% | 5-20 N | below what the stiff stance survives, so it learns the gait first |
+| 2 push | 30% | 10-40 N | moderate pushes; some need a step |
+| 3 hard_push | 40% | 10-55 N | beyond the passive limit, so it has to step to recover |
+
+These limits are measured on this model. With zero action, a 0.2 s push topples
+it at 30 N forward and 50 N backward or sideways. 55 N for 0.2 s is about 0.95 m/s
+of velocity change, which by the capture point needs one big or two normal steps.
+Much bigger pushes are physically unrecoverable for this leg length and would only
+teach it that falling is unavoidable. `play.py --push-test` reports how many it
+actually survives.
 
 **Sim-to-real.** The actor only sees what the robot can measure: gyro, gravity
 direction from the IMU, joint encoders, last action, command and gait clock.

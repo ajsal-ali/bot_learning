@@ -19,7 +19,7 @@ from mujoco import mjx
 from mujoco.mjx._src import math
 import numpy as np
 
-from mujoco_playground._src import mjx_env
+from bdx_mjx import mjx_env
 
 from bdx_mjx import constants as consts
 
@@ -86,7 +86,10 @@ def default_config() -> config_dict.ConfigDict:
               termination=-1.0,
               alive=0.0,
           ),
-          tracking_sigma=0.25,
+          # exp(-err^2 / sigma). Commands are <= 0.5 m/s, so 0.1 makes a 0.3 m/s
+          # error worth 0.41 of the max - standing still clearly loses to walking.
+          tracking_sigma=0.1,
+          ang_tracking_sigma=0.2,
           base_height_target=0.28,
           feet_phase_sigma=0.002,
           min_feet_distance=0.14,  # lateral, metres (default stance ~0.20)
@@ -96,16 +99,25 @@ def default_config() -> config_dict.ConfigDict:
           freq_range=[1.4, 1.8],  # steps per second per foot
           swing_height=0.05,      # metres
       ),
+      # Pushes: a horizontal force on the torso CoM, random direction, held for
+      # duration_range seconds, every interval_range seconds. Measured on this
+      # model: with zero action (stiff stance) a 0.2 s push topples it from 30 N
+      # forward / 50 N backward or sideways. The top of the range (55 N x 0.2 s =
+      # 11 N s on 11.6 kg, ~0.95 m/s) is beyond that, so it must step to recover;
+      # capture point v*sqrt(h/g) ~ 0.16 m is one big or two normal steps. Much
+      # bigger pushes are not recoverable and only teach that falling is
+      # unavoidable. train.py ramps force_range up in phases (CURRICULUM).
       push_config=config_dict.create(
           enable=True,
-          interval_range=[5.0, 10.0],  # seconds
-          magnitude_range=[0.1, 0.6],  # m/s base velocity kick
+          interval_range=[4.0, 8.0],    # seconds between pushes
+          force_range=[10.0, 55.0],     # newtons (final curriculum phase)
+          duration_range=[0.1, 0.2],    # seconds
       ),
       command_config=config_dict.create(
           lin_vel_x=[-0.3, 0.5],
           lin_vel_y=[-0.2, 0.2],
           ang_vel_yaw=[-0.8, 0.8],
-          zero_prob=0.1,
+          zero_prob=0.2,  # standing still (and taking pushes while standing)
           resample_steps=500,  # 10 s
       ),
       termination_config=config_dict.create(
@@ -157,6 +169,7 @@ class Joystick(mjx_env.MjxEnv):
     self._pose_weights = jp.array(weights)
 
     self._imu_site_id = m.site("imu").id
+    self._torso_body_id = m.body(consts.ROOT_BODY).id
     self._feet_site_id = np.array([m.site(s).id for s in consts.FEET_SITES])
     sole = m.geom(consts.FEET_GEOMS[0]).id
     self._sole_half_thickness = float(m.geom_size[sole][2])
@@ -229,7 +242,9 @@ class Joystick(mjx_env.MjxEnv):
         "swing_peak": jp.zeros(2),
         "phase_dt": 2 * jp.pi * self.dt * gait_freq,
         "phase": jp.array([0.0, jp.pi]),  # left, right: anti-phase
-        "push": jp.zeros(2),
+        "push": jp.zeros(2),            # force currently applied [N]
+        "push_force": jp.zeros(2),      # force of the current/last push [N]
+        "push_remaining": 0,            # control steps left in the current push
         "push_step": 0,
         "push_interval_steps": jp.round(push_interval / self.dt).astype(jp.int32),
     }
@@ -255,17 +270,23 @@ class Joystick(mjx_env.MjxEnv):
     cfg = self._config
     info = state.info
 
-    # Random push: a velocity kick on the base every push_interval_steps.
-    info["rng"], k_theta, k_mag = jax.random.split(info["rng"], 3)
+    # Random push: every push_interval_steps start a horizontal force on the
+    # torso, held for a sampled duration (see push_config).
+    pc = cfg.push_config
+    info["rng"], k_theta, k_mag, k_dur = jax.random.split(info["rng"], 4)
+    start = (jp.mod(info["push_step"] + 1, info["push_interval_steps"]) == 0) & pc.enable
     theta = jax.random.uniform(k_theta, maxval=2 * jp.pi)
     magnitude = jax.random.uniform(
-        k_mag, minval=cfg.push_config.magnitude_range[0],
-        maxval=cfg.push_config.magnitude_range[1])
-    push = jp.array([jp.cos(theta), jp.sin(theta)]) * magnitude
-    push *= jp.mod(info["push_step"] + 1, info["push_interval_steps"]) == 0
-    push *= cfg.push_config.enable
-    qvel = state.data.qvel.at[:2].add(push)
-    data = state.data.replace(qvel=qvel)
+        k_mag, minval=pc.force_range[0], maxval=pc.force_range[1])
+    duration = jax.random.uniform(
+        k_dur, minval=pc.duration_range[0], maxval=pc.duration_range[1])
+    info["push_force"] = jp.where(
+        start, jp.array([jp.cos(theta), jp.sin(theta)]) * magnitude, info["push_force"])
+    info["push_remaining"] = jp.where(
+        start, jp.round(duration / self.dt).astype(jp.int32), info["push_remaining"])
+    push = info["push_force"] * (info["push_remaining"] > 0)
+    xfrc = state.data.xfrc_applied.at[self._torso_body_id, :2].set(push)
+    data = state.data.replace(xfrc_applied=xfrc)
 
     motor_targets = self._default_pose + action * cfg.action_scale
     motor_targets = jp.clip(motor_targets, self._lowers, self._uppers)
@@ -288,6 +309,7 @@ class Joystick(mjx_env.MjxEnv):
     # Book-keeping, then the observation for the next action (so it holds the
     # action just applied and the next phase - same order as deploy code).
     info["push"] = push
+    info["push_remaining"] = jp.where(done, 0, jp.maximum(info["push_remaining"] - 1, 0))
     info["step"] += 1
     info["push_step"] += 1
     phase = info["phase"] + info["phase_dt"]
@@ -302,6 +324,13 @@ class Joystick(mjx_env.MjxEnv):
     info["last_contact"] = contact
     info["swing_peak"] *= ~contact
     obs = self._get_obs(data, info, contact)
+    # On a fall the auto-reset wrapper swaps in the cached first data/obs but
+    # keeps info, so put the per-episode info back to what that obs assumes.
+    info["phase"] = jp.where(done, jp.array([0.0, jp.pi]), info["phase"])
+    info["last_act"] = jp.where(done, 0.0, info["last_act"])
+    info["feet_air_time"] = jp.where(done, 0.0, info["feet_air_time"])
+    info["swing_peak"] = jp.where(done, 0.0, info["swing_peak"])
+    info["last_contact"] = jp.where(done, False, info["last_contact"])
 
     for k, v in rewards.items():
       state.metrics[f"reward/{k}"] = v
@@ -409,7 +438,7 @@ class Joystick(mjx_env.MjxEnv):
 
     return {
         "tracking_lin_vel": jp.exp(-lin_err / rcfg.tracking_sigma),
-        "tracking_ang_vel": jp.exp(-ang_err / rcfg.tracking_sigma),
+        "tracking_ang_vel": jp.exp(-ang_err / rcfg.ang_tracking_sigma),
         "lin_vel_z": jp.square(global_linvel[2]),
         "ang_vel_xy": jp.sum(jp.square(global_angvel[:2])),
         "orientation": jp.sum(jp.square(up[:2])),
