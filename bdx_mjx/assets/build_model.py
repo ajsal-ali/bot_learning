@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build MJX-ready GO-BDX models from the CAD export (repo-root go_bdx.xml).
+"""Build MJX-ready GO-BDX models from the CAD export (robot/go_bdx.xml).
 
 The CAD export has placeholder physics (fake 1e-4 inertias, a 28 kg base whose
 mass came from the visual mesh at water density, mesh collisions, unlimited
@@ -29,7 +29,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-SRC_XML = os.path.join(REPO, "go_bdx.xml")
+SRC_XML = os.path.join(REPO, "robot", "go_bdx.xml")
 OUT_DIR = os.path.join(HERE, "xmls")
 
 # Link masses in kg. ESTIMATES (~11.6 kg total) - replace with weighed values.
@@ -149,7 +149,7 @@ def emit_xml(spec, inertial, soles, home_z, with_visuals):
   src = mujoco.MjSpec.from_file(SRC_XML)
   mesh_files = {m.name: os.path.basename(m.file) for m in src.meshes}
   mesh_scales = {m.name: m.scale for m in src.meshes}
-  meshdir = os.path.relpath(os.path.join(REPO, "meshes"), OUT_DIR).replace("\\", "/")
+  meshdir = os.path.relpath(os.path.join(REPO, "robot", "meshes"), OUT_DIR).replace("\\", "/")
 
   out = []
   w = out.append

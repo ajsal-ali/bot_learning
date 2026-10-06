@@ -1,13 +1,10 @@
-# Generated files
+# Python
 __pycache__/
 *.pyc
 
-# Test/debug scripts
-diagnose_*.py
-test_*.py
-visual_test.py
-
-# Training runs (bdx_mjx/train.py output)
+# Training output (bdx_mjx/train.py) and SLURM logs
 runs/
-# Linux wheels downloaded on the PC for the cluster (download_wheels_pc.py)
+logs/
+
+# Linux wheels downloaded on a PC for the cluster (bdx_mjx/slurm/download_wheels_pc.py)
 wheels_linux/

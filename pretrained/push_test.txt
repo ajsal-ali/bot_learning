@@ -1,0 +1,5 @@
+push duration 0.2 s, 8 directions per cell. Training max: 55 N.
+                       20 N     30 N     40 N     50 N     60 N     70 N
+standing              100%     100%     100%     100%      75%      62% 
+walking 0.3 m/s       100%     100%     100%     100%      88%      75% 
+(fraction of pushes survived)

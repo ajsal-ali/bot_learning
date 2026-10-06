@@ -5,7 +5,8 @@ import mujoco.viewer
 import numpy as np
 import time
 
-model = mujoco.MjModel.from_xml_path("go_bdx.xml")
+import os
+model = mujoco.MjModel.from_xml_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "go_bdx.xml"))
 data = mujoco.MjData(model)
 
 # Initial joint angles to start in a good pose

@@ -6,7 +6,8 @@ import numpy as np
 import time
 
 # Load model
-model = mujoco.MjModel.from_xml_path("go_bdx.xml")
+import os
+model = mujoco.MjModel.from_xml_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "go_bdx.xml"))
 data = mujoco.MjData(model)
 
 # Print joint info

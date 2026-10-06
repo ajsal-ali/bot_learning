@@ -244,6 +244,7 @@ def main():
     print("URDF to MuJoCo Converter")
     print("=" * 50)
     
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))  # paths below are relative to robot/
     urdf_path = "go_bdx.urdf"
     meshes_dir = "meshes"
     output_path = "go_bdx.xml"
