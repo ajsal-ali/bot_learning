@@ -12,6 +12,8 @@ BDX_ENV=/scratch/scratch26/23me36008/bdx_env
 SIF=$BDX_ENV/py311.sif          # the container image
 WHEELS=$BDX_ENV/wheels          # downloaded packages (login node)
 VENV=$BDX_ENV/venv              # installed packages (install job)
+# So `import bdx_mjx` works inside the container from any working directory.
+export PYTHONPATH=$PROJECT${PYTHONPATH:+:$PYTHONPATH}
 
 # Keep apptainer's cache/temp off the home quota.
 export APPTAINER_CACHEDIR=$BDX_ENV/apptainer_cache

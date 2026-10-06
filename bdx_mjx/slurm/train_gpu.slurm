@@ -62,7 +62,8 @@ cd "$PROJECT"
 mkdir -p logs runs
 # Container + venv (see env.sh: CentOS 7's glibc is too old for JAX on the host).
 source bdx_mjx/slurm/env.sh
-[ -x "$VENV/bin/python" ] || { echo "no venv - run fetch_env.sh + install_env.slurm first" >&2; exit 1; }
+# (venv/bin/python links to the container's python, so test pyvenv.cfg on the host)
+[ -f "$VENV/pyvenv.cfg" ] || { echo "no venv at $VENV - run install_env.slurm first" >&2; exit 1; }
 # --nv passes the host's NVIDIA driver and the allocated V100 into the container.
 PY="in_container --nv $SIF $VENV/bin/python"
 
