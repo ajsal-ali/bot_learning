@@ -130,8 +130,10 @@ actually survives.
 
 **Sim-to-real.** The actor only sees what the robot can measure: gyro, gravity
 direction from the IMU, joint encoders, last action, command and gait clock.
-It also gets observation noise, random pushes and randomized friction, gains and
-masses. The critic gets privileged sim state (true velocity, contacts) during
+It also gets observation noise, random pushes, randomized friction, gains and
+masses, a 0 or 20 ms actuation delay, and per-joint encoder offsets (±0.03 rad).
+At zero command it is rewarded for standing still with both feet down, and it
+only steps when it needs to, for example after a push. The critic gets privileged sim state (true velocity, contacts) during
 training only. `policy.WalkController` is the deploy code: give it the IMU and
 encoder readings at 50 Hz and it returns 10 joint targets.
 `play.py` runs exactly that loop, and it is verified to match the training env's

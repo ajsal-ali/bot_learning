@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=06:00:00
+#SBATCH --time=03:00:00
 #SBATCH --output=logs/bdx_%j.out
 #SBATCH --error=logs/bdx_%j.err
 
@@ -85,11 +85,18 @@ EOF
 
 RUN_NAME=walk_${SLURM_JOB_ID}
 NUM_ENVS=8192
-TIMESTEPS=200000000
-# To continue an earlier run, set e.g.
-#   RESUME="--resume runs/walk_1234567/checkpoints/latest.pkl"
-RESUME=""
-# ...and to skip phases already done, add e.g. "--start-phase 3" to RESUME.
+# Overridable at submit time, e.g. to fine-tune an earlier run in phase 3 only:
+#   sbatch --export=ALL,RESUME_FROM=runs/walk_1196459/checkpoints/phase3_hard_push.pkl,START_PHASE=3,TIMESTEPS=250000000 bdx_mjx/slurm/train_gpu.slurm
+# Each phase gets its share of TIMESTEPS (30/30/40%), so phase 3 alone with
+# TIMESTEPS=250M runs 100M steps (~12 min).
+TIMESTEPS=${TIMESTEPS:-300000000}   # ~50 min on the V100 (measured 160k steps/s)
+START_PHASE=${START_PHASE:-1}
+RESUME="--start-phase $START_PHASE"
+if [ -n "$RESUME_FROM" ]; then
+    [ -f "$RESUME_FROM" ] || { echo "checkpoint not found: $RESUME_FROM" >&2; exit 1; }
+    RESUME="$RESUME --resume $RESUME_FROM"
+    echo "resuming from $RESUME_FROM, starting at phase $START_PHASE"
+fi
 
 echo "===== TRAIN ====="
 $PY -u -m bdx_mjx.train \

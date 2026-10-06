@@ -82,6 +82,7 @@ def default_config() -> config_dict.ConfigDict:
               # Pose / limits.
               pose=-0.5,
               dof_pos_limits=-1.0,
+              stand_still=-0.5,  # zero command: stay in the standing pose
               # Episode.
               termination=-1.0,
               alive=0.0,
@@ -94,6 +95,10 @@ def default_config() -> config_dict.ConfigDict:
           feet_phase_sigma=0.002,
           min_feet_distance=0.14,  # lateral, metres (default stance ~0.20)
           air_time_range=[0.15, 0.4],  # seconds
+          # |command| below this = "stand still": feet stay down (no gait-clock
+          # lift), no air-time reward, stand_still penalty on. Pushes can still
+          # make it step - surviving is worth far more than that penalty.
+          standing_threshold=0.05,
       ),
       gait_config=config_dict.create(
           freq_range=[1.4, 1.8],  # steps per second per foot
@@ -128,6 +133,13 @@ def default_config() -> config_dict.ConfigDict:
           joint_noise=0.1,  # rad
           base_vel_noise=0.3,
       ),
+      # Actuation latency: with this probability an env applies each action
+      # one control step (20 ms) late, for its whole life. Real robots always
+      # have some delay; a policy that never saw one is often shaky on hardware.
+      action_delay_prob=0.5,
+      # Encoder calibration error: each env sees its joint angles shifted by a
+      # fixed random offset up to this many radians (on top of the noise).
+      joint_offset=0.03,
   )
 
 
@@ -222,7 +234,7 @@ class Joystick(mjx_env.MjxEnv):
     data = self._make_data(qpos, qvel, ctrl=qpos[7:])
     data = mjx.forward(self.mjx_model, data)
 
-    rng, k_freq, k_cmd, k_push = jax.random.split(rng, 4)
+    rng, k_freq, k_cmd, k_push, k_delay, k_off = jax.random.split(rng, 6)
     gait_freq = jax.random.uniform(
         k_freq, minval=cfg.gait_config.freq_range[0],
         maxval=cfg.gait_config.freq_range[1])
@@ -239,6 +251,9 @@ class Joystick(mjx_env.MjxEnv):
         "motor_targets": self._default_pose,
         "feet_air_time": jp.zeros(2),
         "last_contact": jp.zeros(2, dtype=bool),
+        "delayed": jax.random.bernoulli(k_delay, cfg.action_delay_prob),
+        "joint_offset": cfg.joint_offset * jax.random.uniform(
+            k_off, (consts.NUM_JOINTS,), minval=-1.0, maxval=1.0),
         "swing_peak": jp.zeros(2),
         "phase_dt": 2 * jp.pi * self.dt * gait_freq,
         "phase": jp.array([0.0, jp.pi]),  # left, right: anti-phase
@@ -288,7 +303,9 @@ class Joystick(mjx_env.MjxEnv):
     xfrc = state.data.xfrc_applied.at[self._torso_body_id, :2].set(push)
     data = state.data.replace(xfrc_applied=xfrc)
 
-    motor_targets = self._default_pose + action * cfg.action_scale
+    # Delayed envs apply the previous action (what was sent 20 ms ago).
+    applied = jp.where(info["delayed"], info["last_act"], action)
+    motor_targets = self._default_pose + applied * cfg.action_scale
     motor_targets = jp.clip(motor_targets, self._lowers, self._uppers)
     data = mjx_env.step(self.mjx_model, data, motor_targets, self.n_substeps)
     info["motor_targets"] = motor_targets
@@ -365,7 +382,8 @@ class Joystick(mjx_env.MjxEnv):
         self._noisy(info, gyro, scales.gyro),                     # 3
         self._noisy(info, gravity, scales.gravity),               # 3
         info["command"],                                          # 3
-        self._noisy(info, joint_pos, scales.joint_pos) - self._default_pose,  # 10
+        self._noisy(info, joint_pos + info["joint_offset"], scales.joint_pos)
+        - self._default_pose,                                     # 10
         self._noisy(info, joint_vel, scales.joint_vel),           # 10
         info["last_act"],                                         # 10
         phase,                                                    # 4
@@ -412,10 +430,12 @@ class Joystick(mjx_env.MjxEnv):
     # Feet air time: reward steps that land after a long enough swing.
     lo, hi = rcfg.air_time_range
     air = jp.clip((info["feet_air_time"] - lo) * first_contact, max=hi - lo)
-    air_time = jp.sum(air) * (jp.linalg.norm(cmd) > 0.05)
+    moving = jp.linalg.norm(cmd) > rcfg.standing_threshold
+    air_time = jp.sum(air) * moving
 
     # Feet should follow the gait clock's swing-height profile.
-    rz = swing_height_profile(info["phase"], self._config.gait_config.swing_height)
+    # Standing: both feet should stay on the floor (target height 0).
+    rz = swing_height_profile(info["phase"], self._config.gait_config.swing_height) * moving
     phase_err = jp.sum(jp.square(feet_z - rz))
 
     # Feet should not slide while in contact.
@@ -452,6 +472,7 @@ class Joystick(mjx_env.MjxEnv):
         "feet_height": feet_height,
         "feet_distance": feet_distance,
         "pose": jp.sum(jp.square(qpos - self._default_pose) * self._pose_weights),
+        "stand_still": jp.sum(jp.abs(qpos - self._default_pose)) * ~moving,
         "dof_pos_limits": jp.sum(out_of_limits),
         "termination": done,
         "alive": jp.array(1.0),

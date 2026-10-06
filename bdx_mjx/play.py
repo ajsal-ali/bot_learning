@@ -38,7 +38,7 @@ CMD_LIMITS = np.array([[-0.3, 0.5], [-0.2, 0.2], [-0.8, 0.8]])  # match training
 class Sim:
   """Plain-MuJoCo robot + controller, one control tick at a time."""
 
-  def __init__(self, policy_path):
+  def __init__(self, policy_path, auto_reset=True):
     self.model = mujoco.MjModel.from_xml_path(consts.VIEW_XML)
     self.data = mujoco.MjData(self.model)
     self.ctrl = WalkController(policy_path)
@@ -49,6 +49,8 @@ class Sim:
     self.linvel = self.model.sensor(consts.LOCAL_LINVEL_SENSOR)
     self.base = self.model.body(consts.ROOT_BODY).id
     self.falls = 0
+    self.auto_reset = auto_reset
+    self.announce_falls = False  # the viewer turns this on
     self.reset()
 
   def reset(self):
@@ -72,8 +74,10 @@ class Sim:
     self.push_ticks = max(self.push_ticks - 1, 0)
     for _ in range(self.n_substeps):
       mujoco.mj_step(self.model, d)
-    if self.fallen():
+    if self.fallen() and self.auto_reset:
       self.falls += 1
+      if self.announce_falls:
+        print(f"fell (#{self.falls}) - reset to the start pose")
       self.reset()
       return False
     return True
@@ -109,6 +113,9 @@ def run_viewer(sim, args):
     c[:] = np.clip(c, CMD_LIMITS[:, 0], CMD_LIMITS[:, 1])
     print(f"command vx={c[0]:+.2f} m/s  vy={c[1]:+.2f} m/s  yaw={c[2]:+.2f} rad/s")
 
+  sim.announce_falls = True
+  if not sim.auto_reset:
+    print("--no-reset: it will NOT be reset if it falls (End key still resets)")
   with mujoco.viewer.launch_passive(sim.model, sim.data, key_callback=on_key) as v:
     v.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
     v.cam.trackbodyid = sim.model.body(consts.ROOT_BODY).id
@@ -196,10 +203,12 @@ def main():
   p.add_argument("--speed", type=float, default=1.0, help="viewer playback speed, 1 = real time")
   p.add_argument("--push-force", type=float, default=40.0, help="viewer Insert-key push [N]")
   p.add_argument("--push-test", action="store_true", help="print push-recovery survival table")
+  p.add_argument("--no-reset", action="store_true",
+                 help="viewer: never reset after a fall - knock it over and it stays down")
   args = p.parse_args()
 
   path = args.run if args.run.endswith(".npz") else os.path.join(args.run, "policy.npz")
-  sim = Sim(path)
+  sim = Sim(path, auto_reset=not (args.no_reset and not args.push_test and not args.video))
   sim.ctrl.command[:] = args.cmd
   if args.push_test:
     run_push_test(sim, args)
