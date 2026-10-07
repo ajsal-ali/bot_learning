@@ -1,20 +1,12 @@
-# GO-BDX Walking with MuJoCo MJX
+# GO-BDX Walking: Reinforcement Learning with MuJoCo MJX
+
+A walking controller for the GO-BDX biped, trained with reinforcement learning
+(PPO) on thousands of parallel simulations on one GPU. It follows forward, sideways
+and turning commands, and recovers from pushes.
 
 <p align="center">
-  <img src="docs/media/walk_demo.gif" alt="GO-BDX following velocity commands and recovering from a push" width="520">
+  <img src="docs/media/walk_demo.gif" alt="GO-BDX walking demo" width="520">
 </p>
-<p align="center"><i>Stand → forward → turn → backward → sidestep → 40 N side push.
-Green arrow: commanded direction · red arrow: push.</i></p>
-
-A velocity-commanded walking policy for the GO-BDX biped. It's trained with PPO
-on 8192 parallel simulations on one GPU, using [MuJoCo MJX](https://mujoco.readthedocs.io/en/stable/mjx.html)
-and [Brax](https://github.com/google/brax). The trained policy runs on plain NumPy,
-in the simulator or on the robot.
-
-- **Commands:** forward/backward speed, sideways speed, turn rate
-- **Tracking:** 0.30 m/s commanded, 0.30 m/s measured
-- **Push recovery:** survives 100% of 0.2 s pushes up to 50 N, standing or walking
-- **Training:** ~35 min on one V100
 
 ## Quick start
 
